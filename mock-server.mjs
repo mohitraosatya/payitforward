@@ -126,8 +126,8 @@ function handleRequest(data) {
 }
 
 function handleReserve(data) {
-  if (!data.request_ids || data.request_ids.length !== 3) {
-    return { error: 'Exactly 3 request_ids required.' };
+  if (!data.request_ids || data.request_ids.length < 1) {
+    return { error: 'At least 1 request_id required.' };
   }
   const fp     = data.fingerprint || 'anon';
   const now    = new Date();
@@ -153,7 +153,7 @@ function handleReserve(data) {
 
 function handleAct(data) {
   if (!data.helper_name || !data.helper_contact_private) return { error: 'Missing helper info.' };
-  if (!data.selections || data.selections.length !== 3)   return { error: 'Need exactly 3 selections.' };
+  if (!data.selections || data.selections.length < 1)     return { error: 'Need at least 1 selection.' };
 
   const fp  = data.fingerprint || 'anon';
   const now = new Date();

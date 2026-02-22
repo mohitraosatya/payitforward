@@ -178,7 +178,7 @@ export default function HelpPeople() {
     if (reservationExpired) {
       setReservedUntil(null);
       setSelections([]);
-      setReserveError('Your 30-minute reservation expired. Please re-select three requests.');
+      setReserveError('Your 30-minute reservation expired. Please re-select the people you want to help.');
     }
   }, [reservationExpired]);
 
@@ -200,7 +200,7 @@ export default function HelpPeople() {
   // ── Select / deselect ──────────────────────────────────────────────────────
 
   function selectRequest(req: Request) {
-    if (selections.length >= 3 || isReservedByOther(req)) return;
+    if (isReservedByOther(req) || reservedUntil) return; // locked once reserved
 
     const entry: SelectionState = {
       request_id: req.request_id,
@@ -210,18 +210,11 @@ export default function HelpPeople() {
       request: req,
     };
 
-    const next = [...selections, entry];
-    setSelections(next);
-
-    // Auto-reserve as soon as 3 are selected
-    if (next.length === 3) {
-      doReserve(next.map((s) => s.request_id));
-    }
+    setSelections((prev) => [...prev, entry]);
   }
 
   function removeSelection(index: number) {
     setSelections((prev) => prev.filter((_, i) => i !== index));
-    // Reservation lapses naturally in the backend after 30 min
     setReservedUntil(null);
     setReserveError('');
   }
@@ -232,19 +225,18 @@ export default function HelpPeople() {
 
   // ── Reserve ────────────────────────────────────────────────────────────────
 
-  async function doReserve(ids: string[]) {
+  async function doReserve() {
+    if (selections.length === 0) return;
     setIsReserving(true);
     setReserveError('');
     try {
       const fp     = getFingerprint();
+      const ids    = selections.map((s) => s.request_id);
       const result = await reserveRequests(ids, fp);
       setReservedUntil(new Date(result.reserved_until));
-      // Scroll into the details/form area
       setTimeout(() => detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (err) {
       setReserveError((err as Error).message);
-      // Drop the last selection so the user can pick a different one
-      setSelections((prev) => prev.slice(0, 2));
     } finally {
       setIsReserving(false);
     }
@@ -256,12 +248,12 @@ export default function HelpPeople() {
     e.preventDefault();
     setSubmitError('');
 
-    if (selections.length !== 3) {
-      setSubmitError('Please select exactly 3 requests.');
+    if (selections.length < 1) {
+      setSubmitError('Please select at least one request.');
       return;
     }
     if (!reservedUntil) {
-      setSubmitError('Your selections are not reserved yet. Please wait or re-select.');
+      setSubmitError('Your selections are not reserved yet. Click "Reserve & Continue" first.');
       return;
     }
     if (!helper.helper_name.trim() || !helper.helper_contact_private.trim()) {
@@ -304,7 +296,6 @@ export default function HelpPeople() {
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      // Fallback for browsers without clipboard API
       const el = document.createElement('textarea');
       el.value = url;
       document.body.appendChild(el);
@@ -319,11 +310,15 @@ export default function HelpPeople() {
   // ── Success screen ─────────────────────────────────────────────────────────
 
   if (successState) {
+    const n = successState.confirms.length;
     return (
       <div className="page page--narrow">
         <div className="alert alert-success">
-          <strong>Thank you, {successState.helperName}!</strong> Your 3 acts of kindness have
-          been recorded and the tree is growing.
+          <strong>Thank you, {successState.helperName}!</strong>{' '}
+          {n === 1
+            ? 'Your act of kindness has been recorded'
+            : `Your ${n} acts of kindness have been recorded`}{' '}
+          and the tree is growing.
         </div>
 
         {successState.confirms.length > 0 && (
@@ -336,8 +331,8 @@ export default function HelpPeople() {
             </p>
             <ul className="confirm-links-list">
               {successState.confirms.map((cl) => {
-                const url     = buildConfirmUrl(cl.confirm_token);
-                const copied  = copiedToken === cl.confirm_token;
+                const url    = buildConfirmUrl(cl.confirm_token);
+                const copied = copiedToken === cl.confirm_token;
                 return (
                   <li key={cl.confirm_token} className="confirm-link-row">
                     <div className="confirm-link-name">
@@ -380,47 +375,15 @@ export default function HelpPeople() {
 
   return (
     <div className="page">
-      <h1>Help 3 People</h1>
+      <h1>Help People</h1>
       <p className="page-sub">
-        Choose <strong>3 open requests</strong> below. As soon as you pick your 3rd, we
-        reserve them for <strong>30 minutes</strong> so no one else snaps them up while you write
-        your stories.
+        Pick anyone you want to help from the open requests below — one person, a few, or as many
+        as you like. Click <strong>Reserve &amp; Continue</strong> to lock in your selections for{' '}
+        <strong>30 minutes</strong>, then fill in how you'll help each one.
       </p>
 
       {loadError && <div className="alert alert-error">{loadError}</div>}
       {reserveError && <div className="alert alert-error">{reserveError}</div>}
-
-      {/* ── Progress indicator ────────────────────────────────────────── */}
-      <div className="selection-progress">
-        {[1, 2, 3].map((n) => (
-          <span
-            key={n}
-            className={`selection-step ${
-              selections.length >= n
-                ? reservedConfirmed
-                  ? 'done done--reserved'
-                  : 'done'
-                : ''
-            }`}
-          >
-            {n}
-          </span>
-        ))}
-        {isReserving ? (
-          <span className="selection-label">Reserving your spots…</span>
-        ) : reservedConfirmed ? (
-          <span className="selection-label selection-label--reserved">
-            Reserved — submit within{' '}
-            <strong className="countdown">{countdown}</strong>
-          </span>
-        ) : (
-          <span className="selection-label">
-            {selections.length === 3
-              ? 'Reserving…'
-              : `Select ${3 - selections.length} more request${3 - selections.length !== 1 ? 's' : ''}`}
-          </span>
-        )}
-      </div>
 
       <form onSubmit={handleSubmit} noValidate>
         {/* ── Selected request details ──────────────────────────────── */}
@@ -428,11 +391,13 @@ export default function HelpPeople() {
           <section className="selections-section" ref={detailsRef}>
             <h2>
               Your Selections{' '}
+              <span className="count-badge">{selections.length}</span>
               {reservedConfirmed && (
                 <span className="reserved-badge">🔒 Reserved {countdown}</span>
               )}
               {isReserving && <span className="reserved-badge">Reserving…</span>}
             </h2>
+
             {selections.map((sel, i) => (
               <SelectionDetail
                 key={sel.request_id}
@@ -443,6 +408,28 @@ export default function HelpPeople() {
                 disabled={formLocked}
               />
             ))}
+
+            {/* Reserve button — visible only before reservation is confirmed */}
+            {!reservedConfirmed && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ marginTop: '1rem' }}
+                onClick={doReserve}
+                disabled={isReserving}
+              >
+                {isReserving
+                  ? 'Reserving…'
+                  : `Reserve & Continue →`}
+              </button>
+            )}
+
+            {reservedConfirmed && (
+              <p className="field-hint" style={{ marginTop: '0.5rem' }}>
+                Spots reserved — submit before{' '}
+                <strong className="countdown">{countdown}</strong> runs out.
+              </p>
+            )}
           </section>
         )}
 
@@ -474,14 +461,14 @@ export default function HelpPeople() {
 
           <div className="request-cards">
             {filteredRequests.map((req) => {
-              const reserved  = isReservedByOther(req);
-              const maxed     = selections.length >= 3;
-              const selectable = !reserved && !maxed;
+              const reserved   = isReservedByOther(req);
+              const locked     = !!reservedUntil; // selections locked once reserved
+              const selectable = !reserved && !locked;
 
               return (
                 <div
                   key={req.request_id}
-                  className={`request-card ${reserved ? 'request-card--reserved' : ''} ${maxed && !reserved ? 'disabled' : ''}`}
+                  className={`request-card ${reserved ? 'request-card--reserved' : ''} ${locked && !reserved ? 'disabled' : ''}`}
                 >
                   <div className="request-card-header">
                     <span className="request-name">{req.display_name}</span>
@@ -499,12 +486,12 @@ export default function HelpPeople() {
                   </p>
                   <button
                     type="button"
-                    className={`btn ${reserved ? 'btn-reserved' : selectable ? 'btn-outline' : 'btn-outline'}`}
+                    className={`btn ${reserved ? 'btn-reserved' : 'btn-outline'}`}
                     onClick={() => selectable && selectRequest(req)}
                     disabled={!selectable}
-                    title={reserved ? 'Temporarily reserved by another helper' : undefined}
+                    title={reserved ? 'Temporarily reserved by another helper' : locked ? 'Finalize your current selections first' : undefined}
                   >
-                    {reserved ? 'Temporarily reserved' : maxed ? 'Max 3 selected' : 'Select'}
+                    {reserved ? 'Temporarily reserved' : locked ? 'Reserved — submit first' : 'Select'}
                   </button>
                 </div>
               );
@@ -512,22 +499,24 @@ export default function HelpPeople() {
 
             {filteredRequests.length === 0 && !loading && (
               <p className="empty-state">
-                {search ? `No results for "${search}"` : 'All available requests are selected or reserved.'}
+                {search
+                  ? `No results for "${search}"`
+                  : selectedIds.size > 0
+                  ? 'All available requests are selected or reserved by others.'
+                  : 'All requests are currently reserved by other helpers.'}
               </p>
             )}
           </div>
         </section>
 
         {/* ── Helper info + submit ──────────────────────────────────── */}
-        {selections.length === 3 && (
+        {reservedConfirmed && (
           <section className="helper-info-section form-card">
             <h2>Your Info</h2>
             <p>
-              {reservedConfirmed
-                ? `Your 3 spots are reserved. Fill in your details and submit before the timer runs out.`
-                : isReserving
-                ? 'Reserving your spots with the server…'
-                : 'Waiting for reservation confirmation…'}
+              {selections.length === 1
+                ? `Your spot is reserved. Fill in your details and submit before the timer runs out.`
+                : `Your ${selections.length} spots are reserved. Fill in your details and submit before the timer runs out.`}
             </p>
 
             {/* Honeypot — hidden from real users */}
@@ -586,11 +575,9 @@ export default function HelpPeople() {
             >
               {submitting
                 ? 'Submitting…'
-                : formLocked
-                ? isReserving
-                  ? 'Reserving spots…'
-                  : 'Waiting for reservation…'
-                : 'Submit 3 Acts of Kindness'}
+                : selections.length === 1
+                ? 'Submit Act of Kindness'
+                : `Submit ${selections.length} Acts of Kindness`}
             </button>
           </section>
         )}

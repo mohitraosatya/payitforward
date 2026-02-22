@@ -21,17 +21,17 @@ export default function Home() {
   return (
     <div className="page">
       <section className="hero">
-        <h1>One request. Three helpers. A forest of kindness.</h1>
+        <h1>Request help. Get helped. Pay it forward.</h1>
         <p className="hero-sub">
-          When someone helps you, you don't pay them back — you pay it forward to{' '}
-          <strong>3 other people</strong>. Watch the tree grow.
+          When someone helps you, you don't pay them back — you pay it forward to others. Help
+          anyone, help many. Watch the tree grow.
         </p>
         <div className="hero-actions">
           <Link to="/request" className="btn btn-primary">
             I Need Help
           </Link>
           <Link to="/help" className="btn btn-secondary">
-            I'll Help 3 People
+            I'll Help People
           </Link>
           <Link to="/tree" className="btn btn-outline">
             View the Tree
@@ -80,8 +80,8 @@ export default function Home() {
           <li>
             <div className="step-icon">3</div>
             <div>
-              <strong>Pay It Forward</strong> — when you're ready, help 3 people yourself. The tree
-              grows.
+              <strong>Pay It Forward</strong> — when you're ready, help as many people as you can.
+              The tree grows.
             </div>
           </li>
         </ol>

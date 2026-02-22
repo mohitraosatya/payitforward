@@ -20,7 +20,7 @@ export default function Layout() {
           </li>
           <li>
             <NavLink to="/help" className={({ isActive }) => (isActive ? 'active' : '')}>
-              Help 3 People
+              Help People
             </NavLink>
           </li>
           <li>

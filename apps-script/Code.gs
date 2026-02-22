@@ -176,8 +176,8 @@ function handleReserve(data) {
   if (!checkFingerprintLimit('res', fp)) {
     throw new Error('Too many reservation attempts. Try again later.');
   }
-  if (!data.request_ids || data.request_ids.length !== 3) {
-    throw new Error('Exactly 3 request_ids are required.');
+  if (!data.request_ids || data.request_ids.length < 1) {
+    throw new Error('At least 1 request_id is required.');
   }
 
   var lock = LockService.getScriptLock();
@@ -243,8 +243,8 @@ function handleAct(data) {
   var helperName    = requireStr(data.helper_name,            'helper_name',            60);
   var helperContact = requireStr(data.helper_contact_private, 'helper_contact_private', 300);
 
-  if (!data.selections || data.selections.length !== 3) {
-    throw new Error('Exactly 3 selections are required.');
+  if (!data.selections || data.selections.length < 1) {
+    throw new Error('At least 1 selection is required.');
   }
   data.selections.forEach(function(s, i) {
     requireStr(s.request_id,   'selections[' + i + '].request_id',   200);
@@ -261,7 +261,7 @@ function handleAct(data) {
     var H         = colMap(reqValues[0]);
     var now       = new Date();
 
-    // --- Verify all 3 requests before writing anything ---
+    // --- Verify all requests before writing anything ---
     var rowMap = {};
     data.selections.forEach(function(sel) {
       var rid   = sel.request_id.toString();
